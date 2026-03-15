@@ -4,74 +4,86 @@ from PIL import Image
 import json
 import os
 
-# Page config
+# 1. Page config - Added an icon and ensured sidebar starts open
 st.set_page_config(
-    page_title="Plant Care Card Generator",
-    layout="wide"
+    page_title="Plant Care Card",
+    page_icon="🌿",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+# Optional: Add a bit of custom CSS to reduce excessive top padding
+st.markdown("""
+    <style>
+    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+    </style>
+""", unsafe_allow_html=True)
 
 API_URL = os.getenv("API_URL", "http://api:8000")
 
 # Title and description
-st.title("Plant Care Card Generator")
-st.markdown("Upload a plant image to get classification and detailed care instructions")
+st.title("🌿 Plant Care Card Generator")
+st.markdown("Upload a photo of any plant to instantly receive classification details and a personalized care guide.")
+st.divider()
 
 # Sidebar
 with st.sidebar:
     st.header("About")
-    st.info(
-        "This app uses a VGG11 deep learning model to classify plants "
-        "and an AI agent to generate comprehensive care instructions."
+    st.write(
+        "Powered by a **VGG11** deep learning model for classification "
+        "and an **AI agent** for generating comprehensive care instructions."
     )
 
     st.header("How to use")
     st.markdown("""
-    1. Upload a plant image
-    2. Wait for classification
-    3. View the care card
+    1. **Upload** a clear image of a plant.
+    2. **Click** the generate button.
+    3. **Explore** the care tabs.
     """)
 
-    # Check API health
+    st.divider()
+
+    # Cleaner API status indicator
+    st.subheader("System Status")
     try:
         response = requests.get(f"{API_URL}/health", timeout=2)
         if response.status_code == 200:
-            st.success("API Connected")
+            st.success("🟢 API Online")
         else:
-            st.error("API Error")
+            st.warning("🟡 API Error")
     except:
-        st.error("API Offline - Start the API first")
+        st.error("🔴 API Offline")
+        st.caption("Start the API first:")
         st.code("python main.py")
 
-# Main content
-col1, col2 = st.columns([1, 1])
+# Main content - Added 'gap' for better spacing
+col1, col2 = st.columns([1, 1.2], gap="large")
 
 with col1:
-    st.header("Upload Image")
+    st.subheader("Upload Image")
     uploaded_file = st.file_uploader(
         "Choose a plant image",
         type=["jpg", "jpeg", "png", "webp"],
-        help="Upload a clear image of your plant"
+        label_visibility="collapsed"  # Hides redundant label for cleaner UI
     )
 
     if uploaded_file:
         # Display uploaded image
         image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_container_width=True)
+        st.image(image, use_container_width=True)
 
-        # Predict button
-        if st.button("Identify Plant & Generate Care Card", type="primary", use_container_width=True):
-            with st.spinner("Analyzing plant... This may take a minute..."):
+        # Predict button - Updated styling
+        if st.button("✨ Identify Plant & Generate Guide", type="primary", use_container_width=True):
+            with st.spinner("Analyzing plant... This may take a moment..."):
                 try:
                     # Send request to API
-                    files = {"file": uploaded_file.getvalue()}
                     response = requests.post(
                         f"{API_URL}/predict",
                         files={"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
                     )
 
                     if response.status_code == 200:
-                        result = response.json()
-                        st.session_state.result = result
+                        st.session_state.result = response.json()
                         st.session_state.show_result = True
                         st.rerun()
                     else:
@@ -79,75 +91,70 @@ with col1:
 
                 except Exception as e:
                     st.error(f"Failed to connect to API: {str(e)}")
-                    st.info("Make sure the API is running: python main.py")
+                    st.info("Make sure the API is running: `python main.py`")
 
 with col2:
-    st.header("Results")
+    st.subheader("Result")
 
     if "show_result" in st.session_state and st.session_state.show_result:
         result = st.session_state.result
+        care_card = result.get('care_card', {})
 
-        # Prediction info
-        st.subheader("Classification")
-        st.success(f"**Plant:** {result['predicted_plant']}")
-        st.info(f"**Confidence:** {result['confidence']}")
+        # Use columns for plant name and a clean metric component for confidence
+        r_col1, r_col2 = st.columns([3, 1])
+        with r_col1:
+            st.header(result.get('predicted_plant', 'Unknown Plant').title())
+        with r_col2:
+            st.metric(label="Confidence Score", value=result.get('confidence', 'N/A'))
 
-        st.divider()
+        # Use Tabs instead of multiple Expanders to save vertical space
+        tab1, tab2, tab3, tab4 = st.tabs(["📋 Overview", "🌱 Care Needs", "ℹ️ Details", "💡 Notes"])
 
-        # Care card
-        st.subheader("Plant Care Card")
-        care_card = result['care_card']
+        with tab1:
+            st.markdown(f"**Scientific Name:** _{care_card.get('latin_name', 'N/A')}_")
+            st.markdown(f"**Common Names:** {', '.join(care_card.get('common_names', ['N/A']))}")
+            st.markdown(f"**Family:** {care_card.get('plant_family', 'N/A')}")
+            st.markdown(f"**Native Region:** {care_card.get('native_region', 'N/A')}")
 
-        # Basic info
-        with st.expander("Basic Information", expanded=True):
-            st.write(f"**Scientific Name:** {care_card['latin_name']}")
-            st.write(f"**Common Names:** {', '.join(care_card['common_names'])}")
-            st.write(f"**Family:** {care_card['plant_family']}")
-            st.write(f"**Native Region:** {care_card['native_region']}")
+            # Inline badges for indoor/outdoor compatibility
+            outdoors = "✅ Yes" if care_card.get('outdoors') else "❌ No"
+            indoor = "✅ Yes" if care_card.get('indoor_suitable') else "❌ No"
+            st.divider()
+            st.markdown(f"**Suitable Outdoors:** {outdoors} &nbsp;&nbsp;|&nbsp;&nbsp; **Suitable Indoors:** {indoor}")
 
-        # Growing conditions
-        with st.expander("Growing Conditions", expanded=True):
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.write(f"**Outdoors:** {'Yes' if care_card['outdoors'] else 'No'}")
-                st.write(f"**Indoor:** {'Yes' if care_card['indoor_suitable'] else 'No'}")
-            with col_b:
-                st.write(f"**Lighting:** {care_card['lighting_conditions']}")
-                st.write(f"**Temperature:** {care_card['temperature_range']}")
-            st.write(f"**Humidity:** {care_card['humidity_requirements']}")
+        with tab2:
+            st.markdown(f"**☀️ Lighting:** {care_card.get('lighting_conditions', 'N/A')}")
+            st.markdown(f"**🌡️ Temperature:** {care_card.get('temperature_range', 'N/A')}")
+            st.markdown(f"**💧 Humidity:** {care_card.get('humidity_requirements', 'N/A')}")
+            st.markdown(f"**🚿 Watering:** {care_card.get('watering_schedule', 'N/A')}")
+            st.markdown(f"**🪨 Soil:** {care_card.get('soil_type', 'N/A')}")
+            st.markdown(f"**🧪 Fertilization:** {care_card.get('fertilization', 'N/A')}")
+            st.markdown(f"**✂️ Pruning:** {care_card.get('pruning_needs', 'N/A')}")
 
-        # Care instructions
-        with st.expander("Care Instructions", expanded=True):
-            st.write(f"**Watering:** {care_card['watering_schedule']}")
-            st.write(f"**Soil:** {care_card['soil_type']}")
-            st.write(f"**Fertilization:** {care_card['fertilization']}")
-            st.write(f"**Pruning:** {care_card['pruning_needs']}")
+        with tab3:
+            st.markdown(f"**📈 Growth Rate:** {care_card.get('growth_rate', 'N/A')}")
+            st.markdown(f"**📏 Mature Size:** {care_card.get('mature_size', 'N/A')}")
+            st.markdown(f"**☠️ Toxicity:** {care_card.get('toxicity', 'N/A')}")
+            st.markdown(f"**🐛 Common Pests:** {', '.join(care_card.get('common_pests', ['N/A']))}")
 
-        # Additional info
-        with st.expander("Additional Information"):
-            st.write(f"**Growth Rate:** {care_card['growth_rate']}")
-            st.write(f"**Mature Size:** {care_card['mature_size']}")
-            st.write(f"**Toxicity:** {care_card['toxicity']}")
-            st.write(f"**Common Pests:** {', '.join(care_card['common_pests'])}")
-
-        # Special care notes
-        with st.expander("Special Care Notes"):
-            st.write(care_card['special_care_notes'])
+        with tab4:
+            st.info(care_card.get('special_care_notes', 'No special notes available.'))
 
         st.divider()
 
-        # Download JSON
-        if st.button("Download Care Card (JSON)", use_container_width=True):
-            json_str = json.dumps(care_card, indent=2)
-            st.download_button(
-                label="Download JSON",
-                data=json_str,
-                file_name=f"{result['predicted_plant'].replace(' ', '_')}_care_card.json",
-                mime="application/json"
-            )
+        # Download JSON button (full width)
+        json_str = json.dumps(care_card, indent=2)
+        st.download_button(
+            label="Download Care Card (JSON)",
+            data=json_str,
+            file_name=f"{result.get('predicted_plant', 'plant').replace(' ', '_')}_care_card.json",
+            mime="application/json",
+            use_container_width=True
+        )
 
     else:
-        st.info("Upload an image to get started")
+        # Empty state prompt
+        st.info("Upload an image and click **Identify Plant** to see the care guide here.")
 
 # Footer
 st.divider()
