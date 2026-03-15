@@ -19,12 +19,14 @@ Upload a plant image → Get classification + comprehensive care card!
 
 ## Features
 
-✅ **Image Classification**: VGG11 model trained on 30 agricultural plants
-✅ **RAG Database**: 7 plants with curated care guides from trusted sources
-✅ **Web Search Fallback**: Tavily API for plants not in the RAG database
-✅ **Structured Output**: Pydantic schemas with 18 care card fields
-✅ **Dual Interface**: Web UI (Streamlit) + REST API (FastAPI)
-✅ **Docker Deployment**: One-command deployment with Docker Compose
+## Features
+
+- **Image Classification**: VGG11 model trained on 30 agricultural plants
+- **RAG Database**: 7 plants with curated care guides from trusted sources
+- **Web Search Fallback**: Tavily API for plants not in the RAG database
+- **Structured Output**: Pydantic schemas with 18 care card fields
+- **Dual Interface**: Web UI (Streamlit) + REST API (FastAPI)
+- **Docker Deployment**: One-command deployment with Docker Compose
 
 ---
 
