@@ -19,8 +19,6 @@ Upload a plant image → Get classification + comprehensive care card!
 
 ## Features
 
-## Features
-
 - **Image Classification**: VGG11 model trained on 30 agricultural plants
 - **RAG Database**: 7 plants with curated care guides from trusted sources
 - **Web Search Fallback**: Tavily API for plants not in the RAG database
